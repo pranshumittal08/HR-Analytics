@@ -24,7 +24,7 @@ class ImputeMissingValues():
 
     def impute(self, col, imputer):
         self.train_df.loc[:,col] = imputer.fit_transform(self.train_df[col].values.reshape(-1,1))
-        if self.test_df != None:
+        if self.test_df.shape[0] > 0:
             self.test_df.loc[:, col] = imputer.transform(self.test_df[col].values.reshape(-1,1))
 
     def simple_impute(self, col, how = "mean"):
@@ -42,13 +42,18 @@ class ImputeMissingValues():
         imputer = impute.KNNImputer(n_neighbors=neighbors)
         self.impute(col, imputer)
 
+def create_y_train(train_df, target_label):
+    y_train = train_df.pop(target_label)
+    y_train.to_csv("input/y_train.csv")
     
 if __name__ == "__main__":
-    train_df = pd.read_csv("input/train_folds.csv")
-    print(train_df.isna().sum())
+    train_df = pd.read_csv("input/train_set.csv")
+    test_df = pd.read_csv("input/test_set.csv")
     
     set_index(train_df, "employee_id")
-
-    imputeMissing = ImputeMissingValues(train_df)
+    set_index(test_df, "employee_id")
+    create_y_train(train_df, "is_promoted")
+    imputeMissing = ImputeMissingValues(train_df, test_df)
     imputeMissing.iterative_imputer("previous_year_rating")
-    print(train_df.isna().sum())
+    train_df.to_csv("input/preprocessed_train.csv")
+    test_df.to_csv("input/preprocessed_test.csv")
