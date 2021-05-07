@@ -27,7 +27,7 @@ class ImputeMissingValues():
         if self.test_df.shape[0] > 0:
             self.test_df.loc[:, col] = imputer.transform(self.test_df[col].values.reshape(-1,1))
 
-    def simple_impute(self, col, how = "mean"):
+    def simple_imputer(self, col, how = "mean"):
         if how in self.strategies:
             imputer = impute.SimpleImputer(strategy=how)
             self.impute(col, imputer)
@@ -53,7 +53,10 @@ if __name__ == "__main__":
     set_index(train_df, "employee_id")
     set_index(test_df, "employee_id")
     create_y_train(train_df, "is_promoted")
+    
     imputeMissing = ImputeMissingValues(train_df, test_df)
-    imputeMissing.iterative_imputer("previous_year_rating")
+    imputeMissing.iterative_imputer("previous_year_rating", "median")
+    imputeMissing.simple_imputer("education", "most_frequent")
     train_df.to_csv("input/preprocessed_train.csv")
     test_df.to_csv("input/preprocessed_test.csv")
+    print(train_df.columns[train_df.isna().sum() > 0])

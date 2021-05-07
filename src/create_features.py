@@ -1,5 +1,6 @@
 from sklearn import preprocessing
 import pandas as pd
+import numpy as np
 
 #4. Create label encodings
 class Encodings:
@@ -18,12 +19,11 @@ class Encodings:
     def one_hot_encode(self):
         
         encoder = preprocessing.OneHotEncoder(drop = "first", sparse = True)
-        
-        
 
         for i, df in enumerate([self.train_df, self.test_df]):
             if i == 0:
                 one_hot_matrix = encoder.fit_transform(df.select_dtypes(exclude= "number").values).toarray()
+
             else:
                 one_hot_matrix = encoder.transform(df.select_dtypes(exclude= "number").values).toarray()
             encoder_features = encoder.get_feature_names()
@@ -31,8 +31,11 @@ class Encodings:
             df  = df.join(one_hot_df)
             if i == 0:
                 self.train_df.loc[:, df.columns] = df
+                self.train_df.drop(columns = self.train_df.select_dtypes(include = "object").columns, inplace = True)
             else:
                 self.test_df.loc[:, df.columns] = df
+                self.test_df.drop(columns = self.test_df.select_dtypes(include = "object").columns, inplace = True)
+            
 
 #Create Categorical features using already existring cat features
 class Categorical:
@@ -57,19 +60,21 @@ class Aggregate:
         self.test_df = test_df
 
     def create_features(self, metric, cols):
-        new_df = pd.DataFrame(index= self.train_df)
+        new_df = pd.DataFrame(index= self.train_df.index)
         for col in cols:
             grouped = self.train_df.groupby(col)
             agg_df = grouped.aggregate(metric)
             agg_cols = agg_df.columns
             # Fix error in below line
-            transformed_df = grouped.transform(metric).rename(columns = lambda x : "_".join([metric, col, x]))
+            transformed_df = grouped[agg_cols].transform(metric).rename(columns = lambda x : "_".join([metric, col, x]))
             
+            # new_df = pd.DataFrame(index= self.train_df.index)
             new_df.loc[:, transformed_df.columns] = transformed_df.values
-
+            
             for col_2 in agg_cols:
                 mapping = dict(agg_df[col_2])
                 new_col_name = "_".join([metric, col, col_2])
+                
                 self.test_df.loc[:,new_col_name] = self.test_df[col].map(mapping)
 
         self.train_df.loc[:, new_df.columns] = new_df.values
@@ -90,9 +95,41 @@ class Polynomial:
         
         self.test_df.loc[:, poly.get_feature_names()] = poly.transform(self.test_df.select_dtypes(include = "number"))
 
+class Scale:
+
+    def __init__(self, train_df, test_df):
+        self.train_df = train_df
+        self.test_df = test_df
+    
+    def fit_transform(self, scaler):
+        cols = self.train_df.select_dtypes(include = "number").columns
+        self.train_df.loc[:, cols] = scaler.fit_transform(self.train_df[cols])
+        self.test_df.loc[:, cols] = scaler.transform(self.test_df[cols])
+    
+    def min_max(self):
+        scaler = preprocessing.MinMaxScaler()
+        self.fit_transform( scaler)
+
+    def standard(self):
+        scaler = preprocessing.StandardScaler()
+        self.fit_transform( scaler)
+
+    def quantile(self):
+        scaler = preprocessing.QuantileTransformer()
+        self.fit_transform( scaler)
+
+    def robust(self):
+        scaler = preprocessing.RobustScaler()
+        self.fit_transform( scaler)
 
 
-
+def drop_low_std_columns(train_df, test_df, threshold):
+    cols_to_drop = train_df.select_dtypes(include = "number").columns[train_df.std() < threshold]
+    try:
+        train_df.drop(columns = cols_to_drop, inplace = True)
+        test_df.drop(columns = cols_to_drop, inplace = True)
+    except:
+        print("Columns to drop are not available in the test set")
 
 
 if __name__ == "__main__":
@@ -101,27 +138,34 @@ if __name__ == "__main__":
 
     #Steps
     # 1. Create cat features
-    cat_obj = Categorical(train_df, test_df)
-    cat_obj.create_features()
+    # cat_obj = Categorical(train_df, test_df)
+    # cat_obj.create_features()
 
     # 2. Create aggregates
     agg_object = Aggregate(train_df, test_df)
     cols_for_agg = train_df.columns[train_df.nunique() < 10]
     agg_object.create_features("mean", cols_for_agg)
 
-    # 3. Create encodings
-    encode_obj = Encodings(train_df, test_df)
-    encode_obj.label_encode('education')
-    encode_obj.one_hot_encode()
+    #3. Scaling the features
+    scale_obj = Scale(train_df, test_df)
+    scale_obj.min_max()
 
     # 4. Create polynomial features
-    poly_obj = Polynomial(train_df, test_df)
-    poly_obj.create_features()
+    # poly_obj = Polynomial(train_df, test_df)
+    # poly_obj.create_features()
+
+    # 3. Create encodings
+    encode_obj = Encodings(train_df, test_df)
+    encode_obj.label_encode(['education'])
+    encode_obj.one_hot_encode()
+
+    
 
     # 5. Remove features with low variance or standard deviation
+    drop_low_std_columns(train_df, test_df, threshold = 0.1)
     
     # 6. Drop highly correlated features
-    print(train_df.shape)
+    
 
     # 7. Then drop features using recursive feature elimination
  
