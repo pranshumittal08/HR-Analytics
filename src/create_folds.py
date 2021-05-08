@@ -7,7 +7,7 @@ import os
 if __name__ == '__main__':
     print(os.getcwd())
     #Reading data from csv files
-    df = pd.read_csv(config.train_path)
+    df = pd.read_csv(config.train_set)
 
     df['kfold'] = -1
     
@@ -19,5 +19,5 @@ if __name__ == '__main__':
         print(len(train_idx), len(val_idx))
         df.loc[val_idx, 'kfold'] = fold
 
-    df.to_csv("input/train_folds.csv", index = False)
+    df.to_csv(config.train_folds, index = False)
 

@@ -1,6 +1,12 @@
 from sklearn import preprocessing
+from sklearn import feature_selection
 import pandas as pd
 import numpy as np
+import config
+
+#########################################################################
+#--------------------------------CLASSES------------------------------
+#########################################################################
 
 #4. Create label encodings
 class Encodings:
@@ -123,19 +129,24 @@ class Scale:
         self.fit_transform( scaler)
 
 
-def drop_low_std_columns(train_df, test_df, threshold):
-    cols_to_drop = train_df.select_dtypes(include = "number").columns[train_df.std() < threshold]
-    try:
-        train_df.drop(columns = cols_to_drop, inplace = True)
-        test_df.drop(columns = cols_to_drop, inplace = True)
-    except:
-        print("Columns to drop are not available in the test set")
+#########################################################################
+#--------------------------------FUNCTIONS------------------------------
+#########################################################################
 
+
+
+
+
+#########################################################################
+#--------------------------------MAIN------------------------------
+#########################################################################
 
 if __name__ == "__main__":
-    train_df = pd.read_csv("input/preprocessed_train.csv", index_col = "employee_id")
-    test_df = pd.read_csv("input/preprocessed_test.csv", index_col = "employee_id")
-
+    
+    train_df = pd.read_csv(config.train_folds, index_col = "employee_id")
+    test_df = pd.read_csv(config.test_df, index_col = "employee_id")
+    
+    folds_col = train_df.pop("kfold")
     #Steps
     # 1. Create cat features
     # cat_obj = Categorical(train_df, test_df)
@@ -151,8 +162,8 @@ if __name__ == "__main__":
     scale_obj.min_max()
 
     # 4. Create polynomial features
-    # poly_obj = Polynomial(train_df, test_df)
-    # poly_obj.create_features()
+    #poly_obj = Polynomial(train_df, test_df)
+    #poly_obj.create_features()
 
     # 3. Create encodings
     encode_obj = Encodings(train_df, test_df)
@@ -161,13 +172,8 @@ if __name__ == "__main__":
 
     
 
-    # 5. Remove features with low variance or standard deviation
-    drop_low_std_columns(train_df, test_df, threshold = 0.1)
-    
-    # 6. Drop highly correlated features
-    
+    train_df.loc[:, "kfold"] = folds_col
 
-    # 7. Then drop features using recursive feature elimination
- 
-
+    train_df.to_csv(config.train_X)
+    test_df.to_csv(config.test_df)
  

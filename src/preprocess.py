@@ -2,12 +2,11 @@ import numpy as np
 import pandas as pd
 from sklearn import impute
 from sklearn.experimental import enable_iterative_imputer
+import config
 
-def set_index(df, column_name):
-    try:
-        df.set_index(column_name, inplace = True)
-    except NameError:
-        print("The specified column is not present in the dataframe.")
+#########################################################################
+#--------------------------------CLASSES------------------------------
+#########################################################################
      
 class ImputeMissingValues():
     """
@@ -42,13 +41,31 @@ class ImputeMissingValues():
         imputer = impute.KNNImputer(n_neighbors=neighbors)
         self.impute(col, imputer)
 
+
+
+#########################################################################
+#--------------------------------FUNCTIONS------------------------------
+#########################################################################
+
+def set_index(df, column_name):
+    try:
+        df.set_index(column_name, inplace = True)
+    except NameError:
+        print("The specified column is not present in the dataframe.")
+
 def create_y_train(train_df, target_label):
     y_train = train_df.pop(target_label)
-    y_train.to_csv("input/y_train.csv")
-    
+    y_train.to_csv(config.train_y)
+
+
+#########################################################################
+#--------------------------------MAIN------------------------------
+#########################################################################
+
+
 if __name__ == "__main__":
-    train_df = pd.read_csv("input/train_set.csv")
-    test_df = pd.read_csv("input/test_set.csv")
+    train_df = pd.read_csv(config.train_folds)
+    test_df = pd.read_csv(config.test_set)
     
     set_index(train_df, "employee_id")
     set_index(test_df, "employee_id")
@@ -57,6 +74,6 @@ if __name__ == "__main__":
     imputeMissing = ImputeMissingValues(train_df, test_df)
     imputeMissing.iterative_imputer("previous_year_rating", "median")
     imputeMissing.simple_imputer("education", "most_frequent")
-    train_df.to_csv("input/preprocessed_train.csv")
-    test_df.to_csv("input/preprocessed_test.csv")
-    print(train_df.columns[train_df.isna().sum() > 0])
+    train_df.to_csv(config.train_folds)
+    test_df.to_csv(config.test_df)
+ 

@@ -142,4 +142,4 @@ input/
 models/
 submissions/
 .vscode
-/catboost_info
+src/catboost_info
