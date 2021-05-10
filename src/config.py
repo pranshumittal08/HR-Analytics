@@ -14,3 +14,4 @@ test_df = get_path("input\\test_df.csv")
 train_folds = get_path("input\\train_folds.csv")
 model_path = get_path("models")
 index = "employee_id"
+params_path = get_path('parameters.json')

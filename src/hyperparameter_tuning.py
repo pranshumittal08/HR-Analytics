@@ -3,11 +3,15 @@ from sklearn import model_selection
 from sklearn import linear_model
 from sklearn.experimental import enable_halving_search_cv
 from sklearn import metrics 
+from functools import partial
 import pandas as pd
 import numpy as np
 import config
+import json
 import os
+import dispatcher
 import logging
+
 #-------------------------------------------------------------------
 #-------------------------------CLASSES-----------------------------
 #-------------------------------------------------------------------
@@ -35,38 +39,58 @@ if __name__ == "__main__":
     train_X = pd.read_csv(config.train_X, index_col = config.index)
     train_y = pd.read_csv(config.train_y, index_col = config.index)
 
-    # train_X.pop("kfold")
+    folds_col = train_X.pop("kfold")
 
-    #Random Forest hyperparameter tuning
-    # estimator = ensemble.RandomForestClassifier(n_jobs = 10, verbose = 1)
-    # params_grid = {
-    #     "class_weight" : ["balanced", "balanced_subsample"],
-    #     "max_depth" : np.arange(4, 18,3),
-    #     "n_estimators": np.arange(200,1000,200),
-    #     "criterion" : ["gini", "entropy"],
-    #     "min_samples_leaf": np.arange(50,301,50),
-    #     "max_features": np.arange(5, len(train_X.columns)-5, 5),
-    #     "min_impurity_decrease":[ 0.001],
-    #     "max_samples": np.arange(5,15,3)
-    # }
-    # metric = "f1"
-    # tune = Tune(estimator, train_X, train_y)
-    # tune.half_searchCV(params_grid, metric)
-    # print(f"The best f1_score is {tune.best_score}")
-    # print(f"The best parameters are {tune.best_params}")
+    # # hyperparameter tuning
+    estimator_name = "logistic_regression"
+    estimator = dispatcher.MODELS[estimator_name]
+    # estimator = partial(estimator, n_jobs = 10)
+    metric = "f1"
+    #Parameter values to perform grid_search over
+    params_grid = {
+        "C" : np.logspace(-3,3,10),
+        "class_weight" :["balanced", {0:1,1:1}, {0:0.25, 1:0.75}],
+        "max_iter": [2000]
+    }
+    
+    #Tuning the hyperparameters
+    tune = Tune(estimator(), train_X, train_y)
+    tune.half_searchCV(params_grid, metric)
+    print(f"The best f1_score is {tune.best_score}")
+    print(f"The best parameters are {tune.best_params}")
 
-    best_params = {'class_weight': 'balanced', 'criterion': 'gini', 'max_depth': 10, 'max_features': 20, 'max_samples': 11, 'min_impurity_decrease': 0.001, 'min_samples_leaf': 100, 'n_estimators': 400}
+    best_params = tune.best_params
+    print("Tuning has been successfully completed!")
+    
     avg_f1_train, avg_f1_val = [], []
-    folds = train_X.kfold.nunique()
+    folds = folds_col.nunique()
     
     logging.basicConfig(filename= "Tuning_results.log", level = logging.INFO,
                         format = "%(asctime)s:%(name)s:%(message)s")
-    
-    
-    
     logging.info(f"-------------MODEL INFO---------------")
-    logging.info(f"Estimator: {'Random Forest'}")
+    logging.info(f"Estimator: {str(estimator)}")
     
+    train_X['kfold'] = folds_col
+
+
+    #Storing the parameters
+    try:
+        with open(config.params_path, "r+") as file:
+            data = json.load(file)
+
+        data[estimator_name] = best_params
+
+        with open(config.params_path, "w") as file:
+            json.dump(data, file, indent=2)
+
+    except:
+        with open(config.params_path, 'w') as file:
+            data = dict(estimator_name, best_params)
+            json.dump(data, file, indent=2)
+            file.close()
+    print("Parameters dumped successfully!")    
+
+    #Performing Cross validation on the final model to receive the best f1 score
     for fold in range(folds):
         x_train = train_X[train_X.kfold != fold]
         y_train = train_y.loc[x_train.index,:].values.ravel()
@@ -76,7 +100,7 @@ if __name__ == "__main__":
         x_train.pop("kfold")
         x_val.pop("kfold")
 
-        model = ensemble.RandomForestClassifier(n_jobs = 10, verbose = 1, class_weight= "balanced_subsample", max_depth = 40, max_samples = 5000)    
+        model = estimator(**best_params)    
         model.fit(x_train, y_train)
 
         train_pred = model.predict(x_train)
