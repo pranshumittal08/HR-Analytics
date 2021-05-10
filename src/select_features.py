@@ -72,8 +72,8 @@ if __name__ == "__main__":
     train_X = pd.read_csv(config.train_X, index_col = 'employee_id')
     train_y = pd.read_csv(config.train_y, index_col = 'employee_id')
     test_df = pd.read_csv(config.test_df, index_col = "employee_id")
-    drop_low_var_columns(train_X, test_df, threshold = 0.01)
-    feature_selector = RecursiveFeatureElimination(train_X,train_y, test_df )
+    drop_low_var_columns(train_X, test_df, threshold = 0.001) #Earlier 0.01
+    feature_selector = RecursiveFeatureElimination(train_X,train_y, test_df)
     feature_selector.rfeCV()
     folds_col = train_X.kfold
     train_X = feature_selector.train_X.copy()
@@ -81,3 +81,4 @@ if __name__ == "__main__":
     test_df = feature_selector.test_df.copy()
     train_X.to_csv(config.train_X)
     test_df.to_csv(config.test_df)
+    
